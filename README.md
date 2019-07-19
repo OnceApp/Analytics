@@ -105,53 +105,26 @@ It is allowed to send to several streams if required.
 
 ## Usage
 
-
 ```elixir
 defmodule MyApp.MyEvent do
   use Analytics.Records
   alias Analytics.Adapter.Kinesis.Message
-  alias Analytics.EventContext
-  alias Analytics.EventContext.EventData
 
   def record(my_data), do: send_record(my_data)
 
   @impl true
   def handle_event(events) do
-    {stream, master} =
+    stream  =
       events
-      |> Enum.map(fn {user, conxtext} ->
-      	 # `generate_event_id/0`, `master_json/4` are defined in `Analytics.Records`
+      |> Enum.map(fn my_data ->
         event_id = generate_event_id()
-
-        {%Message{
-           partition_key: to_string(user.id),
-           data: event_json(event_id)
-         },
-         %Message{
-           partition_key: to_string(user.id),
-           data:
-             master_json(
-               event_id,
-               user.public_id,
-               user,
-               EventContext.from_context(
-                 %EventData{
-                   event_source: "API",
-                   event_type: "signup",
-                   event_action: step,
-                   event_object: "",
-                   event_property: "",
-                   event_value: ""
-                 },
-                 context
-               )
-             )
-         }}
+        %Message{
+           partition_key: to_string(my_data.id),
+           data: ~s/{"event_id": "#{event_id}", "data": "#{my_data}"}/
+         }
       end)
-      |> Enum.unzip()
     # `send_data/3`, `Analytics.Records`
-    send_data(__MODULE__, "signup", signup)
-    send_data(__MODULE__, "master", master)
+    send_data(__MODULE__, "my_stream", stream)
   rescue
     exception ->
       reraise exception, __STACKTRACE__
